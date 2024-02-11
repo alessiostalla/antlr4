@@ -1,0 +1,59 @@
+(ql:quickload "antlr4cl")
+
+(shadowing-import 'antlr4-runtime:exit)
+(use-package :antlr4-runtime)
+
+(load "<lexerName>.lisp")
+<if(parserName)>
+(load "<parserName>.lisp")
+<if(useListener)>
+(load "<parserName>-listener.lisp")
+<endif>
+<if(useVisitor)>
+(load "<parserName>-visitor.lisp")
+<endif>
+
+(defclass tree-shape-listener (parse-tree-listener))
+
+(defmethod enter ((listener tree-shape-listener) (ctx parser-rule-context))
+  (dotimes (i (child-count ctx))
+    (let* ((child (get-child ctx i))
+           (parent (parent-context child)))
+      (when (or (not (eq (rule-context parent) ctx)) (not (typep parent rule-node)))
+        (error "Invalid parse tree shape detected.")))))
+<endif>
+
+(let* ((input (make-instance 'antlr4-runtime:file-stream (car (uiop:command-line-arguments)) "utf-8" t))
+	   (lexer (make-instance '<lexerName> input))
+	   (stream (make-instance 'antlr4-runtime:common-token-stream input))))
+    const input = new FileStream(argv[2], "utf-8", true);
+    const lexer = new <lexerName>(input);
+    const stream = new CommonTokenStream(lexer);
+<if(parserName)>
+    const parser = new <parserName>(stream);
+<if(showDiagnosticErrors)>
+    parser.addErrorListener(new DiagnosticErrorListener());
+<endif>
+    parser.printer = {
+        println : function(s: string) { console.log(s); },
+        print : function(s: string) { process.stdout.write(s); }
+    };
+    parser._interp.predictionMode = PredictionMode.<predictionMode>;
+<if(!buildParseTree)>
+    parser.buildParseTrees = false;
+<endif>
+    const tree = parser.<parserStartRuleName>();
+    ParseTreeWalker.DEFAULT.walk(new TreeShapeListener(), tree);
+<else>
+    stream.fill();
+    for(let i=0; i\<stream.tokens.length; i++) {
+        console.log(stream.tokens[i].toString());
+    }
+<if(showDFA)>
+    process.stdout.write(lexer._interp.decisionToDFA[Lexer.DEFAULT_MODE].toLexerString());
+<endif>
+<endif>
+}
+
+main(process.argv);
+
