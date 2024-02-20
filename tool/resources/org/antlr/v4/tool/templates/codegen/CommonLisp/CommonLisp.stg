@@ -139,49 +139,41 @@ fileHeader(grammarFileName, ANTLRVersion) ::= <<
 >>
 
 Parser(parser, funcs, atn, sempredFuncs, superClass) ::= <<
-<Parser_(ctor="parser_ctor", ...)>
->>
+(antlr4-runtime:check-version "<file.ANTLRVersion>" antlr4-runtime:+version+)
 
-Parser_(parser, funcs, atn, sempredFuncs, ctor, superClass) ::= <<
-@SuppressWarnings({"all", "warnings", "unchecked", "unused", "cast", "CheckReturnValue"})
-public class <parser.name> extends <superClass; null="Parser"> {
-	static { RuntimeMetaData.checkVersion("<file.ANTLRVersion>", RuntimeMetaData.VERSION); }
+(defvar *parser-shared-context-cache* (make-instance 'antlr4-runtime:prediction-context-cache))
 
-	protected static final DFA[] _decisionToDFA;
-	protected static final PredictionContextCache _sharedContextCache =
-		new PredictionContextCache();
-	<if(parser.tokens)>
-	public static final int
-		<parser.tokens:{k | <k>=<parser.tokens.(k)>}; separator=", ", wrap, anchor>;
-	<endif>
-	<if(parser.rules)>
-	public static final int
-		<parser.rules:{r | RULE_<r.name> = <r.index>}; separator=", ", wrap, anchor>;
-	<endif>
-	private static String[] makeRuleNames() {
-		return new String[] {
-			<parser.ruleNames:{r | "<r>"}; separator=", ", wrap, anchor>
-		};
-	}
-	public static final String[] ruleNames = makeRuleNames();
+(defclass <parser.name> (<superClass; null="antlr4-runtime:parser">) ())
+<if(parser.tokens)>
+<parser.tokens:{k | (defconstant +<k>+ <parser.tokens.(k)>)}; separator="\n", wrap, anchor>
+<endif>
+<if(parser.rules)>
+<parser.rules:{r | (defconstant +rule-<r.name>+ <r.index>)}; separator="\n", wrap, anchor>;
+<endif>
+(defconstant +parser-rule-names+ #(<parser.ruleNames:{r | "<r>"}; separator=" ", wrap, anchor>))
+(defparameter *parser-serialized-atn* <atn>)
+(defparameter *parser-atn* (antlr4-runtime:deserialize-atn *parser-serialized-atn*))
 
-	<vocabulary(parser.literalNames, parser.symbolicNames)>
+<vocabulary(parser.literalNames, parser.symbolicNames)>
 
-	@Override
-	public String getGrammarFileName() { return "<parser.grammarFileName>"; }
+(defmethod antlr4-runtime:grammar-file-name ((parser <parser.name>))
+  (declare (ignorable parser))
+  "<parser.grammarFileName>")
 
-	@Override
-	public String[] getRuleNames() { return ruleNames; }
+(defmethod antlr4-runtime:rule-names ((parser <parser.name>))
+  (declare (ignorable parser))
+  +parser-rule-names+)
 
-	@Override
-	public String getSerializedATN() { return _serializedATN; }
+(defmethod antlr4-runtime:serialized-atn ((parser <parser.name>))
+  (declare (ignorable parser))
+  *parser-serialized-atn*)
 
-	@Override
-	public ATN getATN() { return _ATN; }
+(defmethod antlr4-runtime:atn ((parser <parser.name>))
+  (declare (ignorable parser))
+  *parser-atn*)
 
-	<namedActions.members>
-	<parser:(ctor)()>
-	<funcs; separator="\n">
+<namedActions.members>
+<funcs; separator="\n">
 
 <if(sempredFuncs)>
 	public boolean sempred(RuleContext _localctx, int ruleIndex, int predIndex) {
@@ -194,56 +186,13 @@ case <f.ruleIndex>:
 	}
 	<sempredFuncs.values; separator="\n">
 <endif>
-
-	<atn>
 }
 >>
 
 vocabulary(literalNames, symbolicNames) ::= <<
-private static String[] makeLiteralNames() {
-	return new String[] {
-		<literalNames:{t | <t>}; null="null", separator=", ", wrap, anchor>
-	};
-}
-private static final String[] _LITERAL_NAMES = makeLiteralNames();
-private static String[] makeSymbolicNames() {
-	return new String[] {
-		<symbolicNames:{t | <t>}; null="null", separator=", ", wrap, anchor>
-	};
-}
-private static final String[] _SYMBOLIC_NAMES = makeSymbolicNames();
-public static final Vocabulary VOCABULARY = new VocabularyImpl(_LITERAL_NAMES, _SYMBOLIC_NAMES);
-
-/**
- * @deprecated Use {@link #VOCABULARY} instead.
- */
-@Deprecated
-public static final String[] tokenNames;
-static {
-	tokenNames = new String[_SYMBOLIC_NAMES.length];
-	for (int i = 0; i \< tokenNames.length; i++) {
-		tokenNames[i] = VOCABULARY.getLiteralName(i);
-		if (tokenNames[i] == null) {
-			tokenNames[i] = VOCABULARY.getSymbolicName(i);
-		}
-
-		if (tokenNames[i] == null) {
-			tokenNames[i] = "\<INVALID>";
-		}
-	}
-}
-
-@Override
-@Deprecated
-public String[] getTokenNames() {
-	return tokenNames;
-}
-
-@Override
-
-public Vocabulary getVocabulary() {
-	return VOCABULARY;
-}
+(defvar +literal-names+ #(<literalNames:{t | <t>}; null="nil", separator=" ", wrap, anchor>))
+(defvar +symbolic-names+ #(<symbolicNames:{t | <t>}; null="nil", separator=" ", wrap, anchor>))
+(defvar +lexer-vocabulary+ (make-instance 'antlr4-runtime:vocabulary :literal-names +literal-names+ :symbolic-names +symbolic-names+))
 >>
 
 dumpActions(recog, argFuncs, actionFuncs, sempredFuncs) ::= <<
@@ -702,11 +651,11 @@ CaptureNextTokenType(d) ::= "<d.varName> = _input.LA(1);"
 
 StructDecl(struct,ctorAttrs,attrs,getters,dispatchMethods,interfaces,extensionMembers,signatures)
 	::= <<
-@SuppressWarnings("CheckReturnValue")
-public static class <struct.escapedName> extends <if(contextSuperClass)><contextSuperClass><else>ParserRuleContext<endif><if(interfaces)> implements <interfaces; separator=", "><endif> {
-	<attrs:{a | public <a>;}; separator="\n">
-	<getters:{g | <g>}; separator="\n">
-	<if(ctorAttrs)>public <struct.escapedName>(ParserRuleContext parent, int invokingState) { super(parent, invokingState); }<endif>
+(defclass <struct.escapedName> (<if(contextSuperClass)><contextSuperClass><else>antlr4-runtime:parser-rule-context<endif><if(interfaces)> <interfaces; separator=" "><endif>)
+  (<attrs:{a | (<a>)}; separator="\n">))
+
+<getters:{g | <g>}; separator="\n">
+
 	public <struct.escapedName>(ParserRuleContext parent, int invokingState<ctorAttrs:{a | , <a>}>) {
 		super(parent, invokingState);
 		<struct.ctorAttrs:{a | this.<a.escapedName> = <a.escapedName>;}; separator="\n">
@@ -813,58 +762,53 @@ Lexer(lexer, atn, actionFuncs, sempredFuncs, superClass) ::= <<
 (defvar *lexer-decision-to-dfa*)
 (defvar *lexer-shared-context-cache* (make-instance 'antlr4-runtime:prediction-context-cache))
 (defparameter *lexer-serialized-atn* <atn>)
-(defparameter *lexer-deserialized-atn* (antlr4-runtime:deserialize-atn *lexer-serialized-atn*))
+(defparameter *lexer-atn* (antlr4-runtime:deserialize-atn *lexer-serialized-atn*))
 
-(defclass <lexer.name> (<superClass; null="antlr4-runtime:lexer">) ((atn :initform *deserialized-atn*)))
-	<if(lexer.tokens)>
+(defclass <lexer.name> (<superClass; null="antlr4-runtime:lexer">) ())
+<if(lexer.tokens)>
 <lexer.tokens:{k | (defconstant +<k>+ <lexer.tokens.(k)>)}; separator="\n", wrap, anchor>
-	<endif>
+<endif>
 
-	<if(lexer.escapedChannels)>
+<if(lexer.escapedChannels)>
 <lexer.escapedChannels:{c | (defconstant +<c>+ <lexer.escapedChannels.(c)>)}; separator="\n", wrap, anchor>;
-	<endif>
+<endif>
 
-	<if(rest(lexer.escapedModeNames))>
+<if(rest(lexer.escapedModeNames))>
 <rest(lexer.escapedModeNames):{m | (defconstant +<m>+ <i>)}; separator="\n", wrap, anchor>;
-	<endif>
+<endif>
 (defconstant +channel-names+ #("DEFAULT_TOKEN_CHANNEL" "HIDDEN"<if (lexer.channelNames)> <lexer.channelNames:{c| "<c>"}; separator=" ", wrap, anchor><endif>))
 
 (defconstant +mode-names+ #(<lexer.modes:{m| "<m>"}; separator=" ", wrap, anchor>))
 
-(defconstant +rule-names+ #(<lexer.ruleNames:{r | "<r>"}; separator=" ", wrap, anchor>))
+(defconstant +lexer-rule-names+ #(<lexer.ruleNames:{r | "<r>"}; separator=" ", wrap, anchor>))
 
-	<vocabulary(lexer.literalNames, lexer.symbolicNames)>
+<vocabulary(lexer.literalNames, lexer.symbolicNames)>
 
-	<namedActions.members>
+<namedActions.members>
 
-	(defmethod initialize-instance :after ((lexer <lexer.name>) &rest args)
-	  (declare (ignore args))
-	  (setf (slot-value lexer 'antlr4-runtime:interpreter) (make-instance 'antlr4-runtime:lexer-atn-simulator instance
-	public <lexer.name>(CharStream input) {
-		super(input);
-		_interp = new LexerATNSimulator(this,_ATN,_decisionToDFA,_sharedContextCache);
-	}
+(defmethod initialize-instance :after ((lexer <lexer.name>) &rest args)
+  (declare (ignore args))
+  (setf (slot-value lexer 'antlr4-runtime:interpreter) (make-instance 'antlr4-runtime:lexer-atn-simulator :lexer lexer)))
 
-	@Override
-	public String getGrammarFileName() { return "<lexer.grammarFileName>"; }
+(defmethod antlr4-runtime:grammar-file-name ((lexer <lexer.name>))
+  "<lexer.grammarFileName>")
 
-	@Override
-	public String[] getRuleNames() { return ruleNames; }
+(defmethod antlr4-runtime:rule-names ((lexer <lexer.name>))
+  +lexer-rule-names+)
 
-	@Override
-	public String getSerializedATN() { return _serializedATN; }
+(defmethod antlr4-runtime:serialized-atn ((lexer <lexer.name>))
+  *lexer-serialized-atn*)
 
-	@Override
-	public String[] getChannelNames() { return channelNames; }
+(defmethod antlr4-runtime:channel-names ((lexer <lexer.name>))
+  +channel-names+)
 
-	@Override
-	public String[] getModeNames() { return modeNames; }
+(defmethod antlr4-runtime:mode-names ((lexer <lexer.name>))
+  +mode-names+)
 
-	@Override
-	public ATN getATN() { return _ATN; }
+(defmethod antlr4-runtime:atn ((lexer <lexer.name>))
+  *lexer-atn*)
 
-	<dumpActions(lexer, "", actionFuncs, sempredFuncs)>
-}
+<dumpActions(lexer, "", actionFuncs, sempredFuncs)>
 >>
 
 SerializedATN(model) ::= <<

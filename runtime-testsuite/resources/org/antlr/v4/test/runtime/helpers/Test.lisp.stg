@@ -23,37 +23,28 @@
         (error "Invalid parse tree shape detected.")))))
 <endif>
 
-(let* ((input (make-instance 'antlr4-runtime:file-stream (car (uiop:command-line-arguments)) "utf-8" t))
-	   (lexer (make-instance '<lexerName> input))
-	   (stream (make-instance 'antlr4-runtime:common-token-stream input))))
-    const input = new FileStream(argv[2], "utf-8", true);
-    const lexer = new <lexerName>(input);
-    const stream = new CommonTokenStream(lexer);
-<if(parserName)>
-    const parser = new <parserName>(stream);
-<if(showDiagnosticErrors)>
-    parser.addErrorListener(new DiagnosticErrorListener());
-<endif>
-    parser.printer = {
-        println : function(s: string) { console.log(s); },
-        print : function(s: string) { process.stdout.write(s); }
-    };
-    parser._interp.predictionMode = PredictionMode.<predictionMode>;
-<if(!buildParseTree)>
-    parser.buildParseTrees = false;
-<endif>
-    const tree = parser.<parserStartRuleName>();
-    ParseTreeWalker.DEFAULT.walk(new TreeShapeListener(), tree);
-<else>
-    stream.fill();
-    for(let i=0; i\<stream.tokens.length; i++) {
-        console.log(stream.tokens[i].toString());
-    }
-<if(showDFA)>
-    process.stdout.write(lexer._interp.decisionToDFA[Lexer.DEFAULT_MODE].toLexerString());
-<endif>
-<endif>
-}
-
-main(process.argv);
-
+(with-open-file (f (car (uiop:command-line-arguments)))
+  (let* ((input (make-instance 'antlr4-runtime:char-stream f))
+  	     (lexer (make-instance '<lexerName> input))
+  	     (stream (make-instance 'antlr4-runtime:common-token-stream lexer))
+  	     parser)
+    <if(parserName)>
+      (setf parser (make-instance '<parserName> stream))
+    <if(showDiagnosticErrors)>
+      (antlr4-runtime:add-error-listener parser (make-instance 'antlr4-runtime:diagnostic-error-listener))
+    <endif>
+      (setf (antlr4-runtime:prediction-mode (antlr4-runtime:interpreter parser))
+            'antlr4-runtime:+prediction-mode-<predictionMode>+)
+    <if(!buildParseTree)>
+      (setf (antlr4-runtime:build-parse-trees? parser) nil)
+    <endif>
+      (let ((tree (<parserStartRuleName> parser)))
+        (antlr4-runtime:walk +default-parse-tree-walker+ (make-instance 'antlr4-runtime:tree-shape-listener) tree))
+    <else>
+      (antlr4-runtime:fill stream)
+      (dolist (t (stream-tokens stream))
+        (print t))
+    <if(showDFA)>
+      (print (to-lexer-string (aref (antlr4-runtime:decision-to-dfa (antlr4-runtime:interpreter lexer)) antlr4-runtime:+default-mode+)))
+    <endif>
+    <endif>))
